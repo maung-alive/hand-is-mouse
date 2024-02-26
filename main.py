@@ -4,25 +4,23 @@ import HandTrackingModule as htm
 import math
 import mouse
 
-width, height = 1920, 1080
-detector = htm.handDetector()
+width, height = 1920, 1080  # Your screen
+startDragX, startDragY = mouse.get_position()
+curCursorX, curCursorY = mouse.get_position()
+sensitivity = 0.7    # Default Sensitivity
+mouseAcceleration = 0.2  # Default mouse acceleration
+detector = htm.handDetector(trackCon=0.7, detectionCon=0.8)
 
 capture = cv2.VideoCapture(0)
-capture.set(3, 480)
-capture.set(4, 640)
 
 pTime = 0
 
-def getNearest(integer):
+def getNearest(integer):        # to make more stable the mouse cursor
     list = [i for i in str(integer)]
 
-    if int(list[-1]) > 4:
-        list[-2] = int(list[-2]) + 1
-        list[-1] = 0
-    else:
-        list[-1] = 0
-
+    list[-1] = 0
     nList = [str(i) for i in list]
+
     return int(''.join(nList))
 
 while True:
@@ -34,7 +32,7 @@ while True:
     fps = 1/(cTime-pTime)
     pTime = cTime
 
-    frame = detector.findHands(frame, draw=False)
+    frame = detector.findHands(frame, draw=True)
     lm = detector.findPosition(frame, draw=False)
 
     if len(lm[0]) != 0:
@@ -43,11 +41,8 @@ while True:
         midgerX, midgerY = lm[0][12][1], lm[0][12][2]
         thgerX, thgerY = lm[0][16][1], lm[0][16][2]
 
-        posX, posY = fingerX, fingerY
-        curX, curY = mouse.get_position()
-        mouseX = getNearest(int(width/frame_width * posX))
-        mouseY = getNearest(int(height/frame_height * posY))
-        mouse.move(mouseX, mouseY, absolute=True)
+        cursorX, cursorY = lm[0][5][1], lm[0][5][2]
+        midMCPX, midMCPY = lm[0][9][1], lm[0][9][2]
 
         cv2.circle(frame, (thumbX, thumbY), 10, (0,255,255), 2)
         cv2.circle(frame, (fingerX, fingerY), 10, (0,255,255), 2)
@@ -57,12 +52,35 @@ while True:
         thTofin_distance = math.hypot(fingerX-thumbX, fingerY-thumbY)
         thTomid_distance = math.hypot(midgerX-thumbX, midgerY-thumbY)
         thToth_distance = math.hypot(thgerX-thumbX, thgerY-thumbY)
+        scrollDown = math.hypot(midgerX - fingerX, midgerY - fingerY)
+        scrollUp = math.hypot(fingerX-cursorX, fingerY-cursorY)
+        drag = scrollUp + math.hypot(midgerX-midMCPX, midgerY-midMCPY)
 
-        if thTomid_distance < 50:
+        if drag < 40:
+            #dragX, dragY = (startDragX - midMCPX) + curCursorX, (startDragY - midMCPY) + curCursorY
+            #print(curCursorX - midMCPX, cursorY - midMCPY)
+            #mouse.drag(curCursorX, curCursorY, dragX, dragY, absolute=True)
+            startDragX, startDragY = midMCPX, midMCPY
+        elif scrollDown < 20:
+            mouse.wheel(-1)
+        elif scrollUp < 15:
+            mouse.wheel(1)
+        elif thTofin_distance < 15:
             mouse.click('left')
-        elif thToth_distance < 50:
+        elif thTomid_distance < 20:
             mouse.click('right')
+        else:
+            mouseX, mouseY = lm[0][6][1], lm[0][6][2]
+            deltaX, deltaY = mouseX - startDragX, mouseY - startDragY
+            curCursorX = int(width/frame_width * deltaX)*sensitivity + curCursorX
+            curCursorY = int(width/frame_width * deltaY)*sensitivity + curCursorY
 
-    cv2.putText(frame, f"FPS: {int(fps)}", (50, 50), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,0), 1)
+            print('->', curCursorX, curCursorY)
+
+            startDragX, startDragY = mouseX,mouseY
+            mouse.move(curCursorX, curCursorY, absolute=True, duration=0.1)
+
+
+    cv2.putText(frame, f"FPS: {int(fps)}", (10, 10), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,0), 1)
     cv2.imshow("Camera", frame)
     cv2.waitKey(1)
