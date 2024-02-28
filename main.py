@@ -5,13 +5,18 @@ import math
 import mouse
 
 width, height = 1920, 1080  # Your screen
-startDragX, startDragY = mouse.get_position()
+startMouseX, startMouseY = mouse.get_position()
 curCursorX, curCursorY = mouse.get_position()
-sensitivity = 0.7    # Default Sensitivity
-mouseAcceleration = 0.2  # Default mouse acceleration
-detector = htm.handDetector(trackCon=0.7, detectionCon=0.8)
+sensitivity = 1.2    # Default Sensitivity
 
-draging = False # Mouse drag don't change this
+detector = htm.handDetector(trackCon=0.9, detectionCon=0.5)
+
+dragging = False # Mouse drag don't change this
+dragX, dragY = 0, 0 # To drag
+doneDragging = False # Dragging true or false
+startedDragging = False # to set first position to drag
+startDragX, startDragY = 0, 0
+
 
 capture = cv2.VideoCapture(0)
 
@@ -44,7 +49,7 @@ while True:
         thgerX, thgerY = lm[0][16][1], lm[0][16][2]
 
         cursorX, cursorY = lm[0][5][1], lm[0][5][2]
-        midMCPX, midMCPY = lm[0][9][1], lm[0][9][2]
+        midMidX, midMidY = lm[0][10][1], lm[0][10][2]
 
         cv2.circle(frame, (thumbX, thumbY), 10, (0,255,255), 2)
         cv2.circle(frame, (fingerX, fingerY), 10, (0,255,255), 2)
@@ -56,24 +61,40 @@ while True:
         thToth_distance = math.hypot(thgerX-thumbX, thgerY-thumbY)
         scrollDown = math.hypot(midgerX - fingerX, midgerY - fingerY)
         scrollUp = math.hypot(fingerX-cursorX, fingerY-cursorY)
-        drag = scrollUp + math.hypot(midgerX-midMCPX, midgerY-midMCPY)
+        drag = math.hypot(midMidX-thumbX, midMidY-thumbY)
 
         # Mouse Move
         mouseX, mouseY = lm[0][6][1], lm[0][6][2]
-        deltaX, deltaY = mouseX - startDragX, mouseY - startDragY
+        deltaX, deltaY = mouseX - startMouseX, mouseY - startMouseY
         curCursorX = int(width/frame_width * deltaX)*sensitivity
         curCursorY = int(width/frame_width * deltaY)*sensitivity
-        startDragX, startDragY = mouseX,mouseY
+        startMouseX, startMouseY = mouseX,mouseY
         mouse.move(curCursorX, curCursorY, absolute=False, duration=0.1)
 
+        # Mouse Drag
+        if dragging:
+            dragX, dragY = mouse.get_position()
+            print(dragX, dragY)
+            doneDragging = False
+        else:
+            if not doneDragging:
+                mouse.drag(startDragX, startDragY, dragX, dragY, absolute=False, duration=0.1)
+                doneDragging = True
+                startedDragging = False
+
         if drag < 40:
-            if not drag:
-                mouse.drag(curCursorX, curCursorY, dragX, dragY, absolute=True)
-        elif scrollDown < 20:
+            if not startedDragging:
+                startDragX, startDragY = curCursorX, curCursorY
+                startedDragging = True
+            dragging = True
+        elif drag > 40:
+            dragging = False
+
+        if scrollDown < 20:
             mouse.wheel(-1)
         elif scrollUp < 15:
             mouse.wheel(1)
-        elif thTofin_distance < 15:
+        elif thTofin_distance < 25:
             mouse.click('left')
         elif thTomid_distance < 20:
             mouse.click('right')
