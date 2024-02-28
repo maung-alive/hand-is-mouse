@@ -11,6 +11,8 @@ sensitivity = 0.7    # Default Sensitivity
 mouseAcceleration = 0.2  # Default mouse acceleration
 detector = htm.handDetector(trackCon=0.7, detectionCon=0.8)
 
+draging = False # Mouse drag don't change this
+
 capture = cv2.VideoCapture(0)
 
 pTime = 0
@@ -56,11 +58,17 @@ while True:
         scrollUp = math.hypot(fingerX-cursorX, fingerY-cursorY)
         drag = scrollUp + math.hypot(midgerX-midMCPX, midgerY-midMCPY)
 
+        # Mouse Move
+        mouseX, mouseY = lm[0][6][1], lm[0][6][2]
+        deltaX, deltaY = mouseX - startDragX, mouseY - startDragY
+        curCursorX = int(width/frame_width * deltaX)*sensitivity
+        curCursorY = int(width/frame_width * deltaY)*sensitivity
+        startDragX, startDragY = mouseX,mouseY
+        mouse.move(curCursorX, curCursorY, absolute=False, duration=0.1)
+
         if drag < 40:
-            #dragX, dragY = (startDragX - midMCPX) + curCursorX, (startDragY - midMCPY) + curCursorY
-            #print(curCursorX - midMCPX, cursorY - midMCPY)
-            #mouse.drag(curCursorX, curCursorY, dragX, dragY, absolute=True)
-            startDragX, startDragY = midMCPX, midMCPY
+            if not drag:
+                mouse.drag(curCursorX, curCursorY, dragX, dragY, absolute=True)
         elif scrollDown < 20:
             mouse.wheel(-1)
         elif scrollUp < 15:
@@ -70,15 +78,7 @@ while True:
         elif thTomid_distance < 20:
             mouse.click('right')
         else:
-            mouseX, mouseY = lm[0][6][1], lm[0][6][2]
-            deltaX, deltaY = mouseX - startDragX, mouseY - startDragY
-            curCursorX = int(width/frame_width * deltaX)*sensitivity + curCursorX
-            curCursorY = int(width/frame_width * deltaY)*sensitivity + curCursorY
-
-            print('->', curCursorX, curCursorY)
-
-            startDragX, startDragY = mouseX,mouseY
-            mouse.move(curCursorX, curCursorY, absolute=True, duration=0.1)
+            pass
 
 
     cv2.putText(frame, f"FPS: {int(fps)}", (10, 10), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,0), 1)
